@@ -29,115 +29,127 @@ export default function QueridometroClient({ users }: { users: any[] }) {
         fetch(`/api/votes/summary?userId=${userId}`),
         fetch(`/api/votes/me?senderId=${userId}`)
       ]);
-
       if (summaryRes.ok) setChartData(await summaryRes.json());
       if (votesRes.ok) setMyVotes(await votesRes.json());
-    } catch (error) {
-      console.error("Erro ao carregar dados", error);
-    }
+    } catch (error) { console.error(error); }
   };
 
   const handleVote = async (receiverId: string, emoji: string) => {
-    // 1. Atualização Otimista: Trava a tela instantaneamente
     const originalVotes = { ...myVotes };
     setMyVotes(prev => ({ ...prev, [receiverId]: emoji }));
-
-    // 2. Envia para o servidor
     const res = await fetch('/api/vote', {
       method: 'POST',
       body: JSON.stringify({ receiverId, emoji, senderId: currentUser.id }),
     });
-
     if (!res.ok) {
-      alert("Erro! Você provavelmente já votou hoje.");
-      setMyVotes(originalVotes); // Desfaz a trava se o servidor rejeitar
+      alert("Erro ao computar voto.");
+      setMyVotes(originalVotes);
     }
   };
 
-  if (!currentUser) return <div className="text-center py-20 text-zinc-500">Carregando...</div>;
+  if (!currentUser) return null;
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700 pb-20">
+    <div className="space-y-12 animate-enter pb-24">
       
-      {/* SEÇÃO 1: MEU STATUS (Com Link para Perfil) */}
-      <section className="bg-zinc-900/50 p-8 rounded-[2.5rem] border border-zinc-800 shadow-2xl relative overflow-hidden">
-        <div className="flex flex-col items-center mb-8 relative z-10">
-          
-          {/* Link que envolve a Foto e o Nome */}
-          <Link href="/profile" className="group flex flex-col items-center">
-            <div className="relative">
-              <img 
-                src={currentUser.image || `https://ui-avatars.com/api/?name=${currentUser.name}&background=random`} 
-                alt="Meu Perfil" 
-                className="w-24 h-24 rounded-full border-4 border-zinc-800 shadow-lg object-cover mb-4 cursor-pointer group-hover:border-zinc-500 group-hover:scale-105 transition-all"
-              />
-              {/* Overlay de "Editar" que aparece ao passar o mouse */}
-              <div className="absolute inset-0 mb-4 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                <span className="text-[10px] font-bold text-white uppercase tracking-widest">Editar</span>
-              </div>
-            </div>
-            
-            <h2 className="text-2xl font-black text-white tracking-tight group-hover:text-zinc-300 transition-colors text-center">
-              {currentUser.name}
-            </h2>
-          </Link>
+      {/* SEÇÃO HERO: Perfil e Gráfico */}
+      {/* Ajuste de Proporção: Largura máxima contida para leitura confortável */}
+      <section className="relative overflow-hidden rounded-[2rem] border border-white/5 bg-zinc-900/40 p-8 md:p-12 shadow-2xl backdrop-blur-xl">
+        {/* Efeito de luz ambiente */}
+        <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-red-500/10 blur-3xl pointer-events-none" />
 
-          <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mt-1">Suas reações hoje</p>
-        </div>
-        
-        <div className="relative z-10">
-          <QueridometroChart data={chartData} />
+        <div className="relative z-10 flex flex-col md:flex-row gap-8 md:items-start">
           
-          {/* Contagem de Emojis abaixo do gráfico */}
-          {chartData.length > 0 && (
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              {chartData.map((data) => (
-                <div key={data.emoji} className="flex items-center gap-2 bg-zinc-800/80 px-4 py-2 rounded-xl border border-zinc-700">
-                  <span className="text-2xl">{data.emoji}</span>
-                  <span className="text-white font-bold text-lg">{data.count}</span>
-                </div>
-              ))}
+          {/* Coluna Esquerda: Identidade */}
+          <div className="flex flex-col items-center md:items-start md:w-1/3 space-y-4">
+            <Link href="/profile" className="group relative">
+              <div className="relative h-28 w-28 overflow-hidden rounded-full border-4 border-zinc-800 shadow-lg transition-transform duration-300 group-hover:scale-105 group-hover:border-zinc-600">
+                <img 
+                  src={currentUser.image || `https://ui-avatars.com/api/?name=${currentUser.name}`} 
+                  alt="Perfil" 
+                  className="h-full w-full object-cover"
+                />
+              </div>
+              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-zinc-800 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white opacity-0 transition-opacity group-hover:opacity-100">
+                Editar
+              </div>
+            </Link>
+            
+            <div className="text-center md:text-left">
+              <h2 className="text-3xl font-bold tracking-tight text-white">
+                {currentUser.name}
+              </h2>
+              <p className="text-sm font-medium uppercase tracking-widest text-zinc-500">
+                Dashboard Diário
+              </p>
             </div>
-          )}
+
+            {/* Micro-stats (Contagem rápida) */}
+            <div className="flex flex-wrap gap-2 justify-center md:justify-start pt-2">
+               {chartData.slice(0, 3).map((d) => (
+                 <div key={d.emoji} className="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1.5 text-sm border border-white/5">
+                    <span>{d.emoji}</span>
+                    <span className="font-bold text-zinc-200">{d.count}</span>
+                 </div>
+               ))}
+            </div>
+          </div>
+          
+          {/* Coluna Direita: Gráfico */}
+          <div className="flex-1 w-full min-h-[200px] border-t md:border-t-0 md:border-l border-white/5 md:pl-8 pt-8 md:pt-0">
+             <h3 className="mb-6 text-xs font-bold uppercase tracking-widest text-zinc-500">
+               Visão Geral de Reações
+             </h3>
+             <QueridometroChart data={chartData} />
+          </div>
         </div>
       </section>
 
-      {/* SEÇÃO 2: LISTA DE COLEGAS E VOTAÇÃO */}
-      <section className="space-y-6">
-        <h3 className="text-zinc-500 text-xs font-bold uppercase tracking-widest ml-4">Interagir com a Galera</h3>
+      {/* SEÇÃO LISTA: Grid Responsivo Profissional */}
+      <section>
+        <div className="mb-6 flex items-center justify-between px-2">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+            Membros ({users.length - 1})
+          </h3>
+          <span className="h-px flex-1 bg-zinc-800 ml-4"></span>
+        </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* GRID: 1 col (mobile), 2 col (tablet), 3 col (desktop) */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {users.filter(u => u.id !== currentUser.id).map(user => (
-            <div key={user.id} className="bg-zinc-900 border border-zinc-800 p-5 rounded-[2rem] flex flex-col sm:flex-row items-center justify-between hover:border-zinc-600 transition-all group gap-4">
-              
-              {/* Infos do Usuário */}
-              <div className="flex items-center gap-4 w-full sm:w-auto">
+            <div 
+              key={user.id} 
+              className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-white/5 bg-zinc-900/30 p-5 transition-all duration-300 hover:border-white/10 hover:bg-zinc-900/60"
+            >
+              <div className="flex items-center gap-4 mb-5">
                 <img 
-                  src={user.image || `https://ui-avatars.com/api/?name=${user.name}&background=random`} 
+                  src={user.image || `https://ui-avatars.com/api/?name=${user.name}`} 
                   alt={user.name}
-                  className="w-14 h-14 rounded-full object-cover border-2 border-zinc-800 group-hover:border-zinc-500 transition-colors"
+                  className="h-12 w-12 rounded-full border border-white/10 object-cover"
                 />
-                <span className="font-bold text-lg text-zinc-300 group-hover:text-white transition-colors truncate max-w-[120px]">
-                  {user.name.split(' ')[0]}
-                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-base font-semibold text-zinc-200 group-hover:text-white transition-colors">
+                    {user.name}
+                  </p>
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">
+                    Disponível
+                  </p>
+                </div>
               </div>
 
-              {/* ÁREA DE VOTO */}
-              <div className="flex-1 flex justify-end w-full sm:w-auto">
+              {/* Área de Ação */}
+              <div className="mt-auto">
                 {myVotes[user.id] ? (
-                  // SE JÁ VOTOU: Mostra o emoji travado
-                  <div className="flex flex-col items-center animate-in zoom-in duration-300 bg-black/30 p-2 rounded-xl border border-zinc-800/50 w-full sm:w-auto">
-                    <span className="text-4xl" role="img">{myVotes[user.id]}</span>
-                    <span className="text-[9px] uppercase font-bold text-zinc-500 mt-1">Enviado</span>
+                  <div className="flex h-12 w-full items-center justify-center rounded-xl bg-green-500/10 border border-green-500/20 text-2xl animate-in zoom-in duration-300">
+                    {myVotes[user.id]}
                   </div>
                 ) : (
-                  // SE NÃO VOTOU: Mostra lista com quebra de linha (flex-wrap)
-                  <div className="flex flex-wrap gap-2 justify-center sm:justify-end">
+                  <div className="flex flex-wrap gap-1.5 justify-center">
                     {EMOJIS.map(emoji => (
                       <button 
                         key={emoji} 
                         onClick={() => handleVote(user.id, emoji)}
-                        className="text-2xl p-2 bg-zinc-800 rounded-xl hover:bg-zinc-700 hover:scale-110 transition-all active:scale-90"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/5 text-lg transition-all hover:scale-110 hover:bg-white/10 hover:text-white focus:ring-2 focus:ring-zinc-700 active:scale-95"
                         title={`Enviar ${emoji}`}
                       >
                         {emoji}
@@ -151,12 +163,12 @@ export default function QueridometroClient({ users }: { users: any[] }) {
         </div>
       </section>
 
-      <footer className="text-center border-t border-zinc-900 pt-10">
+      <footer className="mt-20 flex justify-center border-t border-white/5 pt-8">
         <button 
           onClick={() => { localStorage.removeItem('queridometro_user'); router.push('/auth'); }}
-          className="text-zinc-600 text-xs font-bold uppercase hover:text-red-500 transition-colors"
+          className="rounded-full px-6 py-2 text-xs font-bold uppercase tracking-widest text-zinc-500 transition-colors hover:bg-white/5 hover:text-red-400"
         >
-          Sair da Conta
+          Encerrar Sessão
         </button>
       </footer>
     </div>

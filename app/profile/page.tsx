@@ -56,9 +56,9 @@ export default function ProfilePage() {
       if (file) {
         const fileExt = file.name.split('.').pop();
         const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-        const { error } = await supabase.storage.from('avatars').upload(fileName, file, { upsert: true });
+        const { error } = await supabase.storage.from('Avatars').upload(fileName, file, { upsert: true });
         if (error) throw error;
-        const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
+        const { data } = supabase.storage.from('Avatars').getPublicUrl(fileName);
         finalImageUrl = data.publicUrl;
       }
 

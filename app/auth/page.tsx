@@ -29,14 +29,14 @@ export default function AuthPage() {
 
         // 2. Faz o upload para o bucket 'avatars'
         const { error: uploadError } = await supabase.storage
-          .from('avatars')
+          .from('Avatars')
           .upload(filePath, file);
 
         if (uploadError) throw uploadError;
 
         // 3. Pega a URL pública
         const { data: { publicUrl } } = supabase.storage
-          .from('avatars')
+          .from('Avatars')
           .getPublicUrl(filePath);
 
         finalImageUrl = publicUrl;
