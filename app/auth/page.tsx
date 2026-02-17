@@ -1,36 +1,79 @@
 "use client";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase'; // Importe o cliente que criamos
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
-  // Adicionei o campo 'image' ao estado inicial do formulário
+  const [loading, setLoading] = useState(false);
+  
+  // Estado separado para o arquivo de imagem
+  const [file, setFile] = useState<File | null>(null);
+  
   const [form, setForm] = useState({ name: '', email: '', password: '', image: '' });
   const router = useRouter();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    const path = isLogin ? '/api/auth/login' : '/api/auth/register';
-    
-    const res = await fetch(path, { 
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form) 
-    });
-    
-    const data = await res.json();
+    setLoading(true);
 
-    if (res.ok) {
-      if (isLogin) {
-        // Salva os dados completos (agora incluindo a imagem se o login retornar)
-        localStorage.setItem('queridometro_user', JSON.stringify(data));
-        router.push('/');
-      } else {
-        alert("Conta criada com sucesso! Agora faça login.");
-        setIsLogin(true); // Alterna automaticamente para a tela de login
+    try {
+      let finalImageUrl = form.image;
+
+      // LÓGICA DE UPLOAD (Só executa se for cadastro e tiver arquivo)
+      if (!isLogin && file) {
+        // 1. Cria um nome único para o arquivo (evita substituição)
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        // 2. Faz o upload para o bucket 'avatars'
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        // 3. Pega a URL pública
+        const { data: { publicUrl } } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+        finalImageUrl = publicUrl;
       }
-    } else {
-      alert(data.error || "Ocorreu um erro.");
+
+      // 4. Prossegue com o cadastro/login normal
+      const path = isLogin ? '/api/auth/login' : '/api/auth/register';
+      
+      // Enviamos o formulário com a URL da imagem atualizada
+      const bodyData = { ...form, image: finalImageUrl };
+
+      const res = await fetch(path, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyData) 
+      });
+      
+      const data = await res.json();
+
+      if (res.ok) {
+        if (isLogin) {
+          localStorage.setItem('queridometro_user', JSON.stringify(data));
+          router.push('/');
+        } else {
+          alert("Conta criada com sucesso! Faça login.");
+          setIsLogin(true);
+          setFile(null); // Limpa o arquivo
+        }
+      } else {
+        alert(data.error || "Ocorreu um erro.");
+      }
+
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao fazer upload da imagem ou conectar.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -52,13 +95,21 @@ export default function AuthPage() {
                 className="w-full bg-black border border-zinc-800 p-4 rounded-2xl outline-none focus:border-red-500 transition-all" 
                 onChange={e => setForm({...form, name: e.target.value})} 
               />
-              {/* NOVO CAMPO: Só aparece no cadastro */}
-              <input 
-                type="url" 
-                placeholder="URL da Foto (Instagram/LinkedIn)" 
-                className="w-full bg-black border border-zinc-800 p-4 rounded-2xl outline-none focus:border-red-500 transition-all" 
-                onChange={e => setForm({...form, image: e.target.value})} 
-              />
+              
+              {/* INPUT DE ARQUIVO (UPLOAD) */}
+              <div className="bg-black border border-zinc-800 p-2 rounded-2xl">
+                <label className="block text-zinc-500 text-xs ml-2 mb-1 uppercase font-bold">Foto de Perfil</label>
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  className="w-full text-sm text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-zinc-800 file:text-white hover:file:bg-zinc-700 cursor-pointer" 
+                  onChange={e => {
+                    if (e.target.files && e.target.files[0]) {
+                      setFile(e.target.files[0]);
+                    }
+                  }} 
+                />
+              </div>
             </>
           )}
           
@@ -77,8 +128,11 @@ export default function AuthPage() {
             onChange={e => setForm({...form, password: e.target.value})} 
           />
           
-          <button className="w-full bg-white text-black font-black p-4 rounded-2xl hover:bg-zinc-200 transition-all active:scale-95 uppercase">
-            {isLogin ? 'Entrar' : 'Criar Conta'}
+          <button 
+            disabled={loading}
+            className="w-full bg-white text-black font-black p-4 rounded-2xl hover:bg-zinc-200 transition-all active:scale-95 uppercase disabled:opacity-50"
+          >
+            {loading ? 'Processando...' : (isLogin ? 'Entrar' : 'Criar Conta')}
           </button>
         </form>
 

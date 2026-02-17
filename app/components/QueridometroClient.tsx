@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import QueridometroChart from './QueridometroChart';
 
 const EMOJIS = ["❤️", "🧩", "🍪", "🌱", "🤢", "🎯", "🏳️‍🌈", "🤥", "💼"];
@@ -37,7 +38,7 @@ export default function QueridometroClient({ users }: { users: any[] }) {
   };
 
   const handleVote = async (receiverId: string, emoji: string) => {
-    // 1. Atualização Otimista
+    // 1. Atualização Otimista: Trava a tela instantaneamente
     const originalVotes = { ...myVotes };
     setMyVotes(prev => ({ ...prev, [receiverId]: emoji }));
 
@@ -49,7 +50,7 @@ export default function QueridometroClient({ users }: { users: any[] }) {
 
     if (!res.ok) {
       alert("Erro! Você provavelmente já votou hoje.");
-      setMyVotes(originalVotes);
+      setMyVotes(originalVotes); // Desfaz a trava se o servidor rejeitar
     }
   };
 
@@ -58,22 +59,36 @@ export default function QueridometroClient({ users }: { users: any[] }) {
   return (
     <div className="space-y-10 animate-in fade-in duration-700 pb-20">
       
-      {/* SEÇÃO 1: MEU STATUS */}
+      {/* SEÇÃO 1: MEU STATUS (Com Link para Perfil) */}
       <section className="bg-zinc-900/50 p-8 rounded-[2.5rem] border border-zinc-800 shadow-2xl relative overflow-hidden">
         <div className="flex flex-col items-center mb-8 relative z-10">
-          <img 
-            src={currentUser.image || `https://ui-avatars.com/api/?name=${currentUser.name}&background=random`} 
-            alt="Sua foto" 
-            className="w-24 h-24 rounded-full border-4 border-zinc-800 shadow-lg object-cover mb-4"
-          />
-          <h2 className="text-2xl font-black text-white tracking-tight">{currentUser.name}</h2>
-          <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Suas reações hoje</p>
+          
+          {/* Link que envolve a Foto e o Nome */}
+          <Link href="/profile" className="group flex flex-col items-center">
+            <div className="relative">
+              <img 
+                src={currentUser.image || `https://ui-avatars.com/api/?name=${currentUser.name}&background=random`} 
+                alt="Meu Perfil" 
+                className="w-24 h-24 rounded-full border-4 border-zinc-800 shadow-lg object-cover mb-4 cursor-pointer group-hover:border-zinc-500 group-hover:scale-105 transition-all"
+              />
+              {/* Overlay de "Editar" que aparece ao passar o mouse */}
+              <div className="absolute inset-0 mb-4 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                <span className="text-[10px] font-bold text-white uppercase tracking-widest">Editar</span>
+              </div>
+            </div>
+            
+            <h2 className="text-2xl font-black text-white tracking-tight group-hover:text-zinc-300 transition-colors text-center">
+              {currentUser.name}
+            </h2>
+          </Link>
+
+          <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mt-1">Suas reações hoje</p>
         </div>
         
         <div className="relative z-10">
           <QueridometroChart data={chartData} />
           
-          {/* Contagem de Emojis */}
+          {/* Contagem de Emojis abaixo do gráfico */}
           {chartData.length > 0 && (
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               {chartData.map((data) => (
@@ -107,15 +122,16 @@ export default function QueridometroClient({ users }: { users: any[] }) {
                 </span>
               </div>
 
-              {/* ÁREA DE VOTO (Alterada para Flex-Wrap) */}
+              {/* ÁREA DE VOTO */}
               <div className="flex-1 flex justify-end w-full sm:w-auto">
                 {myVotes[user.id] ? (
+                  // SE JÁ VOTOU: Mostra o emoji travado
                   <div className="flex flex-col items-center animate-in zoom-in duration-300 bg-black/30 p-2 rounded-xl border border-zinc-800/50 w-full sm:w-auto">
                     <span className="text-4xl" role="img">{myVotes[user.id]}</span>
                     <span className="text-[9px] uppercase font-bold text-zinc-500 mt-1">Enviado</span>
                   </div>
                 ) : (
-                  // AQUI ESTÁ A MUDANÇA: flex-wrap e justify-end (ou center no mobile)
+                  // SE NÃO VOTOU: Mostra lista com quebra de linha (flex-wrap)
                   <div className="flex flex-wrap gap-2 justify-center sm:justify-end">
                     {EMOJIS.map(emoji => (
                       <button 
