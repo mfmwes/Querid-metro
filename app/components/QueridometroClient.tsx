@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import QueridometroChart from './QueridometroChart';
 
-const EMOJIS = ["❤️", "🧩", "🍪", "🌱", "🤢", "🎯", "🏳️‍🌈", "🤥", "💼"];
+const EMOJIS = ["❤️", "💣", "🍪", "🌱", "🤢", "🎯", "💔", "🤥", "💼", "🐍", "🤬","🍌"];
 
 export default function QueridometroClient({ users }: { users: any[] }) {
   const [currentUser, setCurrentUser] = useState<any>(null);

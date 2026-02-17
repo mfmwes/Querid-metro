@@ -3,15 +3,18 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Cell, Tooltip } from 
 
 // Mapeamento de Cores por Emoji
 const EMOJI_COLORS: Record<string, string> = {
-  "❤️": "#ef4444", // Red
-  "🧩": "#a855f7", // Purple
-  "🍪": "#f59e0b", // Amber
-  "🌱": "#22c55e", // Green
-  "🤢": "#84cc16", // Lime
-  "🎯": "#3b82f6", // Blue
-  "🏳️‍🌈": "#ec4899", // Pink
-  "🤥": "#71717a", // Zinc
-  "💼": "#6366f1", // Indigo
+  "❤️": "#ef4444", // Red 500
+  "💣": "#18181b", // Zinc 900 (Preto Bomba)
+  "🍪": "#f59e0b", // Amber 500
+  "🌱": "#22c55e", // Green 500
+  "🤢": "#84cc16", // Lime 500
+  "🎯": "#3b82f6", // Blue 500
+  "💔": "#be123c", // Rose 700 (Coração Partido)
+  "🤥": "#71717a", // Zinc 500
+  "💼": "#6366f1", // Indigo 500
+  "🐍": "#15803d", // Green 700 (Verde Cobra Escuro)
+  "🤬": "#991b1b", // Red 800 (Vermelho Raiva)
+  "🍌": "#facc15", // Yellow 400 (Amarelo Banana)
 };
 
 export default function ProfileChart({ data }: { data: any[] }) {
