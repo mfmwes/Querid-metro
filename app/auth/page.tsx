@@ -1,148 +1,241 @@
 "use client";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase'; // Importe o cliente que criamos
+import { createClient } from '@supabase/supabase-js';
+
+// Inicialização do Supabase (para Upload de Fotos)
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function AuthPage() {
+  const router = useRouter();
+  
+  // Estados do Formulário
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
-  
-  // Estado separado para o arquivo de imagem
+  const [error, setError] = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [file, setFile] = useState<File | null>(null);
-  
-  const [form, setForm] = useState({ name: '', email: '', password: '', image: '' });
-  const router = useRouter();
+  const [preview, setPreview] = useState<string>('');
 
+  // Função Principal de Autenticação
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      let finalImageUrl = form.image;
-
-      // LÓGICA DE UPLOAD (Só executa se for cadastro e tiver arquivo)
-      if (!isLogin && file) {
-        // 1. Cria um nome único para o arquivo (evita substituição)
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
-        const filePath = `${fileName}`;
-
-        // 2. Faz o upload para o bucket 'avatars'
-        const { error: uploadError } = await supabase.storage
-          .from('Avatars')
-          .upload(filePath, file);
-
-        if (uploadError) throw uploadError;
-
-        // 3. Pega a URL pública
-        const { data: { publicUrl } } = supabase.storage
-          .from('Avatars')
-          .getPublicUrl(filePath);
-
-        finalImageUrl = publicUrl;
+      // --- 1. VALIDAÇÕES PRÉVIAS (FRONT-END) ---
+      
+      // Validação de E-mail (Regex Padrão)
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        alert("Por favor, digite um e-mail válido.");
+        setLoading(false);
+        return;
       }
 
-      // 4. Prossegue com o cadastro/login normal
-      const path = isLogin ? '/api/auth/login' : '/api/auth/register';
-      
-      // Enviamos o formulário com a URL da imagem atualizada
-      const bodyData = { ...form, image: finalImageUrl };
+      // Validação de Senha
+      if (password.length < 6) {
+        alert("A senha deve ter no mínimo 6 caracteres.");
+        setLoading(false);
+        return;
+      }
 
-      const res = await fetch(path, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyData) 
-      });
-      
-      const data = await res.json();
+      // Validação de Nome (Apenas no Cadastro)
+      if (!isLogin && name.length < 2) {
+        alert("O nome precisa ter pelo menos 2 letras.");
+        setLoading(false);
+        return;
+      }
 
-      if (res.ok) {
-        if (isLogin) {
-          localStorage.setItem('queridometro_user', JSON.stringify(data));
-          router.push('/');
-        } else {
-          alert("Conta criada com sucesso! Faça login.");
-          setIsLogin(true);
-          setFile(null); // Limpa o arquivo
+      // --- 2. FLUXO DE CADASTRO (REGISTER) ---
+      if (!isLogin) {
+        let finalImageUrl = null;
+
+        // Upload da Imagem (Se houver)
+        if (file) {
+          try {
+            // Limpa o nome do arquivo para evitar erros de URL
+            const fileExt = file.name.split('.').pop();
+            const cleanName = file.name.replace(/[^a-zA-Z0-9]/g, '');
+            const fileName = `${Date.now()}-${cleanName}.${fileExt}`;
+
+            // Upload para o bucket 'Avatars' (Maiúsculo, conforme seu painel)
+            const { error: uploadError } = await supabase.storage
+              .from('Avatars') 
+              .upload(fileName, file);
+
+            if (uploadError) throw uploadError;
+
+            // Gera a URL Pública
+            const { data } = supabase.storage
+              .from('Avatars')
+              .getPublicUrl(fileName);
+
+            finalImageUrl = data.publicUrl;
+            
+          } catch (storageError) {
+            console.error("Erro no Upload:", storageError);
+            alert("Erro ao subir a imagem. Tente uma foto menor ou .jpg");
+            setLoading(false);
+            return;
+          }
         }
-      } else {
-        alert(data.error || "Ocorreu um erro.");
+
+        // Chama a API de Criação de Usuário
+        const res = await fetch('/api/user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            name, 
+            email, 
+            password, 
+            image: finalImageUrl 
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Erro ao criar conta.");
+        }
+
+        // Sucesso no cadastro: Loga automaticamente
+        localStorage.setItem('queridometro_user', JSON.stringify(data));
+        router.push('/');
+      } 
+      
+      // --- 3. FLUXO DE LOGIN ---
+      else {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Credenciais inválidas.");
+        }
+
+        // Salva sessão e redireciona
+        localStorage.setItem('queridometro_user', JSON.stringify(data));
+        router.push('/');
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Erro ao fazer upload da imagem ou conectar.");
+      alert(error.message);
     } finally {
       setLoading(false);
     }
   };
 
+  // Função para pré-visualizar a imagem escolhida
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+      setPreview(URL.createObjectURL(e.target.files[0]));
+    }
+  };
+
   return (
-    <main className="min-h-screen bg-black text-white flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 p-8 rounded-[2.5rem] shadow-2xl">
-        <h1 className="text-4xl font-black italic mb-2 text-center bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 bg-clip-text text-transparent">
-          {isLogin ? 'LOGIN' : 'CADASTRO'}
-        </h1>
-        <p className="text-zinc-500 text-center mb-8 text-sm uppercase tracking-widest">Queridômetro Online</p>
+    <div className="min-h-screen flex items-center justify-center bg-black p-4">
+      <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem] shadow-2xl">
         
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-black italic tracking-tighter text-white mb-2">
+            {isLogin ? 'LOGIN' : 'CADASTRO'}
+          </h1>
+          <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">
+            Queridômetro Online
+          </p>
+        </div>
+
         <form onSubmit={handleAuth} className="space-y-4">
+          
+          {/* Campo de Nome (Só aparece no cadastro) */}
           {!isLogin && (
-            <>
-              <input 
-                type="text" 
-                placeholder="Seu Nome" 
-                required 
-                className="w-full bg-black border border-zinc-800 p-4 rounded-2xl outline-none focus:border-red-500 transition-all" 
-                onChange={e => setForm({...form, name: e.target.value})} 
+            <div>
+              <input
+                type="text"
+                placeholder="Seu Nome"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full bg-black border border-zinc-700 p-3 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-red-500 transition-colors"
               />
-              
-              {/* INPUT DE ARQUIVO (UPLOAD) */}
-              <div className="bg-black border border-zinc-800 p-2 rounded-2xl">
-                <label className="block text-zinc-500 text-xs ml-2 mb-1 uppercase font-bold">Foto de Perfil</label>
+            </div>
+          )}
+
+          {/* Upload de Foto (Só aparece no cadastro) */}
+          {!isLogin && (
+            <div className="flex items-center gap-4 bg-black border border-zinc-700 p-2 rounded-xl">
+              <label className="cursor-pointer bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold uppercase px-3 py-2 rounded-lg transition-colors">
+                Escolher Foto
                 <input 
                   type="file" 
-                  accept="image/*"
-                  className="w-full text-sm text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-zinc-800 file:text-white hover:file:bg-zinc-700 cursor-pointer" 
-                  onChange={e => {
-                    if (e.target.files && e.target.files[0]) {
-                      setFile(e.target.files[0]);
-                    }
-                  }} 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={handleFileChange}
                 />
-              </div>
-            </>
+              </label>
+              {preview ? (
+                <img src={preview} alt="Preview" className="w-8 h-8 rounded-full object-cover border border-zinc-600" />
+              ) : (
+                <span className="text-zinc-600 text-xs truncate">Nenhuma foto selecionada</span>
+              )}
+            </div>
           )}
-          
-          <input 
-            type="email" 
-            placeholder="E-mail" 
-            required 
-            className="w-full bg-black border border-zinc-800 p-4 rounded-2xl outline-none focus:border-red-500 transition-all" 
-            onChange={e => setForm({...form, email: e.target.value})} 
-          />
-          <input 
-            type="password" 
-            placeholder="Senha" 
-            required 
-            className="w-full bg-black border border-zinc-800 p-4 rounded-2xl outline-none focus:border-red-500 transition-all" 
-            onChange={e => setForm({...form, password: e.target.value})} 
-          />
-          
-          <button 
+
+          <div>
+            <input
+              type="email"
+              placeholder="seu@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-black border border-zinc-700 p-3 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-red-500 transition-colors"
+            />
+          </div>
+
+          <div>
+            <input
+              type="password"
+              placeholder="Senha (mínimo 6 dígitos)"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-black border border-zinc-700 p-3 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-red-500 transition-colors"
+            />
+          </div>
+
+          <button
+            type="submit"
             disabled={loading}
-            className="w-full bg-white text-black font-black p-4 rounded-2xl hover:bg-zinc-200 transition-all active:scale-95 uppercase disabled:opacity-50"
+            className="w-full bg-white text-black font-bold uppercase text-sm tracking-wider p-4 rounded-xl hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all mt-6"
           >
             {loading ? 'Processando...' : (isLogin ? 'Entrar' : 'Criar Conta')}
           </button>
         </form>
 
-        <button 
-          onClick={() => setIsLogin(!isLogin)} 
-          className="w-full mt-6 text-zinc-500 text-xs hover:text-white uppercase tracking-tighter transition-colors"
-        >
-          {isLogin ? 'Ainda não tem conta? Clique aqui' : 'Já possui conta? Voltar ao login'}
-        </button>
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setError(''); // Limpa erros ao trocar de tela
+              setPreview('');
+              setFile(null);
+            }}
+            className="text-zinc-500 text-xs font-bold uppercase tracking-widest hover:text-white transition-colors"
+          >
+            {isLogin ? 'Não tem conta? Crie agora' : 'Já possui conta? Fazer Login'}
+          </button>
+        </div>
+
       </div>
-    </main>
+    </div>
   );
 }
