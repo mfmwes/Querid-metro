@@ -1,38 +1,53 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 
 export async function POST(req: Request) {
   try {
-    const { email } = await req.json();
+    const { email, secretWord, newPassword } = await req.json();
 
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      // Retorna sucesso mesmo se não existir por segurança (evita vazamento de contas)
-      return NextResponse.json({ message: 'Se o e-mail existir, um link foi gerado.' });
+    if (!email || !secretWord || !newPassword) {
+      return NextResponse.json({ error: 'Preencha todos os campos.' }, { status: 400 });
     }
 
-    // Gera um token de 32 caracteres
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExpiry = new Date(Date.now() + 3600000); // Validade: 1 hora
+    // 1. Busca o usuário
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return NextResponse.json({ error: 'E-mail incorreto ou não encontrado.' }, { status: 400 });
+    }
+
+    // 2. VERIFICAÇÃO INTELIGENTE (PALAVRA SECRETA OU CHAVE MESTRA)
+    let isSecretValid = false;
+
+    if (user.secretWord) {
+      // Cenário A: Usuário novo (tem palavra secreta cadastrada)
+      const normalizedSecret = secretWord.trim().toLowerCase();
+      isSecretValid = await bcrypt.compare(normalizedSecret, user.secretWord);
+    } else {
+      // Cenário B: Usuário ANTIGO (não tem palavra secreta) -> Usa a Chave Mestra
+      const ADMIN_MASTER_KEY = "admin-senha-123"; // ⚠️ Troque por uma frase criativa sua
+      
+      if (secretWord === ADMIN_MASTER_KEY) {
+        isSecretValid = true;
+      }
+    }
+
+    // Se nenhuma das duas bater, bloqueia
+    if (!isSecretValid) {
+      return NextResponse.json({ error: 'Palavra secreta incorreta.' }, { status: 400 });
+    }
+
+    // 3. Atualiza para a nova senha
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     await prisma.user.update({
-      where: { email },
-      data: { resetToken, resetTokenExpiry },
+      where: { id: user.id },
+      data: { password: hashedPassword },
     });
 
-    // Como você ainda não configurou envio de e-mail, o link vai aparecer no console do VS Code / Vercel
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const resetUrl = `${appUrl}/auth/reset?token=${resetToken}`;
-    
-    console.log(`\n======================================================`);
-    console.log(`🔑 LINK DE RECUPERAÇÃO PARA: ${email}`);
-    console.log(`${resetUrl}`);
-    console.log(`======================================================\n`);
-
-    return NextResponse.json({ message: 'Token gerado com sucesso' });
+    return NextResponse.json({ message: 'Senha alterada com sucesso!' });
   } catch (error) {
-    console.error("Erro no forgot:", error);
-    return NextResponse.json({ error: 'Erro interno ao gerar recuperação' }, { status: 500 });
+    console.error("Erro na recuperação:", error);
+    return NextResponse.json({ error: 'Erro interno ao recuperar senha.' }, { status: 500 });
   }
 }

@@ -20,6 +20,7 @@ model User {
   votesReceived Vote[]   @relation("ReceivedVotes")
   resetToken    String?
   resetTokenExpiry DateTime?
+  secretWord       String?
 }
 
 model Vote {

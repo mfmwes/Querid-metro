@@ -2,9 +2,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
-import Link from 'next/link'; // Importação do Link adicionada
+import Link from 'next/link';
 
-// Inicialização do Supabase (para Upload de Fotos)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -13,24 +12,22 @@ const supabase = createClient(
 export default function AuthPage() {
   const router = useRouter();
   
-  // Estados do Formulário
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(''); 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [secretWord, setSecretWord] = useState(''); // NOVO ESTADO
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string>('');
 
-  // Função Principal de Autenticação
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      // --- 1. VALIDAÇÕES PRÉVIAS (FRONT-END) ---
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         setError("Por favor, digite um e-mail válido.");
@@ -50,7 +47,13 @@ export default function AuthPage() {
         return;
       }
 
-      // --- 2. FLUXO DE CADASTRO (REGISTER) ---
+      // VALIDAÇÃO DA PALAVRA SECRETA
+      if (!isLogin && secretWord.length < 3) {
+        setError("Crie uma palavra secreta com pelo menos 3 letras.");
+        setLoading(false);
+        return;
+      }
+
       if (!isLogin) {
         let finalImageUrl = null;
 
@@ -83,7 +86,8 @@ export default function AuthPage() {
         const res = await fetch('/api/user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, password, image: finalImageUrl }),
+          // ENVIANDO A PALAVRA SECRETA AQUI:
+          body: JSON.stringify({ name, email, password, image: finalImageUrl, secretWord }),
         });
 
         const data = await res.json();
@@ -93,8 +97,6 @@ export default function AuthPage() {
         localStorage.setItem('queridometro_user', JSON.stringify(data));
         router.push('/');
       } 
-      
-      // --- 3. FLUXO DE LOGIN ---
       else {
         const res = await fetch('/api/auth/login', {
           method: 'POST',
@@ -138,7 +140,6 @@ export default function AuthPage() {
           </p>
         </div>
 
-        {/* Exibição de Erros */}
         {error && (
           <div className="bg-red-500/10 border border-red-500/50 text-red-500 text-xs font-bold p-3 rounded-lg mb-4 text-center">
             {error}
@@ -192,18 +193,33 @@ export default function AuthPage() {
               className="w-full bg-black border border-zinc-700 p-3 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-red-500 transition-colors"
             />
             
-            {/* LINK DE RECUPERAR SENHA AQUI */}
             {isLogin && (
               <div className="flex justify-end">
                 <Link 
                   href="/auth/forgot" 
-                  className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest hover:text-white transition-colors"
+                  className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest hover:text-white transition-colors underline decoration-zinc-700 underline-offset-4"
                 >
                   Esqueceu a senha?
                 </Link>
               </div>
             )}
           </div>
+
+          {/* NOVO CAMPO DA PALAVRA SECRETA SÓ NO CADASTRO */}
+          {!isLogin && (
+            <div>
+              <input
+                type="text"
+                placeholder="Palavra Secreta (Para recuperar senha)"
+                value={secretWord}
+                onChange={(e) => setSecretWord(e.target.value)}
+                className="w-full bg-black border border-zinc-700 p-3 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:border-red-500 transition-colors"
+              />
+              <p className="text-[10px] text-zinc-500 mt-1 ml-1">
+                Guarde bem. Se você esquecer a senha, só ela poderá recuperá-la.
+              </p>
+            </div>
+          )}
 
           <button
             type="submit"
@@ -221,6 +237,7 @@ export default function AuthPage() {
               setError('');
               setPreview('');
               setFile(null);
+              setSecretWord('');
             }}
             className="text-zinc-500 text-xs font-bold uppercase tracking-widest hover:text-white transition-colors"
           >
