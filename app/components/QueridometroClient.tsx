@@ -14,6 +14,7 @@ type User = {
 type Vote = {
   id: string;
   receiverId: string;
+  emoji: string; // <-- Agora ele sabe qual emoji foi
   createdAt: string;
 };
 
@@ -30,6 +31,7 @@ export default function QueridometroClient({ users }: { users: User[] }) {
       const user = JSON.parse(userStr);
       setCurrentUser(user);
       
+      // Busca a lista de votos atualizada quando a página recarrega
       fetch(`/api/user/${user.id}`)
         .then(res => res.json())
         .then(data => {
@@ -82,6 +84,7 @@ export default function QueridometroClient({ users }: { users: User[] }) {
         return;
       }
 
+      // Adiciona o voto na tela na mesma hora
       setVotesSent(prev => [...prev, data]);
       setSelectedUser(null);
       router.refresh();
@@ -108,14 +111,14 @@ export default function QueridometroClient({ users }: { users: User[] }) {
             .filter(u => u.id !== currentUser.id)
             .map(user => {
               
-              const jaVotou = votesSent.some(vote => 
+              // Verifica se votou E qual foi o emoji
+              const votoDeHoje = votesSent.find(vote => 
                 vote.receiverId === user.id && hasVotedToday(vote.createdAt)
               );
 
               return (
                 <div key={user.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-4 shadow-lg">
                   
-                  {/* LINHA SUPERIOR COM O CSS CONSERTADO */}
                   <div className="flex items-center justify-between gap-3 w-full">
                     <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden shrink-0 border border-zinc-700">
                       {user.image ? (
@@ -127,15 +130,13 @@ export default function QueridometroClient({ users }: { users: User[] }) {
                       )}
                     </div>
                     
-                    {/* flex-1 min-w-0 FORÇA O CORTE DO TEXTO (TRUNCATE) SE FOR GRANDE */}
                     <div className="flex-1 min-w-0">
                        <h4 className="text-white font-bold text-lg truncate">{user.name}</h4>
                        <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mt-0.5">
-                         {jaVotou ? 'VOTO REGISTRADO' : 'DISPONÍVEL'}
+                         {votoDeHoje ? 'VOTO REGISTRADO' : 'DISPONÍVEL'}
                        </p>
                     </div>
 
-                    {/* shrink-0 IMPEDE O BOTÃO DE SER ESMAGADO E PUSHADO PRA FORA */}
                     <button 
                       onClick={() => router.push(`/profile/${user.id}`)}
                       className="shrink-0 text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white px-3 py-1.5 rounded-lg transition-colors uppercase font-bold"
@@ -145,12 +146,15 @@ export default function QueridometroClient({ users }: { users: User[] }) {
                     </button>
                   </div>
 
-                  {/* ÁREA DE VOTAÇÃO INFERIOR */}
                   <div className="bg-black border border-zinc-800 rounded-xl p-3 min-h-[60px] flex items-center justify-center">
-                    {jaVotou ? (
-                      <span className="text-xs text-zinc-600 font-bold uppercase tracking-widest">
-                        Aguarde até as 00:00
-                      </span>
+                    {/* Renderiza o card bloqueado com o emoji que a pessoa escolheu */}
+                    {votoDeHoje ? (
+                      <div className="flex items-center gap-3 bg-zinc-900/50 px-4 py-2 rounded-lg border border-zinc-800">
+                        <span className="text-2xl">{votoDeHoje.emoji}</span>
+                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+                          Enviado hoje
+                        </span>
+                      </div>
                     ) : selectedUser === user.id ? (
                       <div className="flex flex-col w-full gap-3">
                         <div className="flex flex-wrap justify-center gap-3">
