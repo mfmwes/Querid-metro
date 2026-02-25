@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// LISTAR os grupos que o usuário faz parte
+// LISTAR os grupos que o utilizador faz parte
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get('userId');
@@ -11,7 +11,14 @@ export async function GET(req: Request) {
   try {
     const groups = await prisma.group.findMany({
       where: { users: { some: { id: userId } } },
-      include: { _count: { select: { users: true } } },
+      include: { 
+        _count: { select: { users: true } },
+        // A MÁGICA AQUI: Traz os primeiros 5 utilizadores de cada grupo para as miniaturas
+        users: {
+          take: 5,
+          select: { id: true, name: true, image: true }
+        }
+      },
       orderBy: { createdAt: 'desc' }
     });
     return NextResponse.json(groups);
@@ -26,14 +33,13 @@ export async function POST(req: Request) {
     const { name, userId } = await req.json();
     if (!name || !userId) return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 });
 
-    // Gera um código de 6 letras/números aleatórios em maiúsculo
     const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
     const group = await prisma.group.create({
       data: {
         name,
         inviteCode,
-        users: { connect: { id: userId } } // Já coloca o criador dentro do grupo
+        users: { connect: { id: userId } }
       }
     });
 
@@ -43,7 +49,7 @@ export async function POST(req: Request) {
   }
 }
 
-// ENTRAR em um grupo existente com o código
+// ENTRAR num grupo existente com o código
 export async function PUT(req: Request) {
   try {
     const { inviteCode, userId } = await req.json();
@@ -55,7 +61,6 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: 'Código inválido ou grupo inexistente.' }, { status: 404 });
     }
 
-    // Conecta o usuário ao grupo
     const updatedGroup = await prisma.group.update({
       where: { id: group.id },
       data: { users: { connect: { id: userId } } }

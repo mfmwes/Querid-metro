@@ -78,7 +78,7 @@ export default function LobbyPage() {
     }
   };
 
-  if (loading || !user) return <div className="min-h-screen bg-black flex items-center justify-center text-zinc-500 font-bold uppercase tracking-widest text-xs animate-pulse">Carregando Lobby...</div>;
+  if (loading || !user) return <div className="min-h-screen bg-black flex items-center justify-center text-zinc-500 font-bold uppercase tracking-widest text-xs animate-pulse">A carregar Lobby...</div>;
 
   return (
     <main className="min-h-screen bg-black text-white p-4 md:p-8 font-sans">
@@ -123,16 +123,55 @@ export default function LobbyPage() {
             <div className="bg-[#0a0a0a] border border-zinc-800 border-dashed rounded-[2rem] p-10 text-center text-zinc-500 font-bold uppercase tracking-widest text-xs">Você ainda não está em nenhum grupo.</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {groups.map(group => (
-                <div key={group.id} onClick={() => router.push(`/group/${group.id}`)} className="bg-black border border-zinc-800 hover:border-zinc-600 rounded-[1.5rem] p-6 cursor-pointer transition-all shadow-lg hover:-translate-y-1 relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-red-500/10 transition-colors pointer-events-none"></div>
-                  <h4 className="text-xl font-black italic text-white mb-6 relative z-10 truncate">{group.name}</h4>
-                  <div className="flex justify-between items-center relative z-10">
-                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{group._count?.users || 0} Membros</span>
-                    <span className="text-xs bg-zinc-900 border border-zinc-800 text-zinc-400 px-3 py-1.5 rounded-lg font-mono font-bold tracking-widest">CÓD: {group.inviteCode}</span>
+              {groups.map(group => {
+                const totalUsers = group._count?.users || 0;
+                const extraUsers = totalUsers > 5 ? totalUsers - 5 : 0;
+
+                return (
+                  <div key={group.id} onClick={() => router.push(`/group/${group.id}`)} className="flex flex-col h-full bg-black border border-zinc-800 hover:border-zinc-600 rounded-[1.5rem] p-6 cursor-pointer transition-all shadow-lg hover:-translate-y-1 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-red-500/10 transition-colors pointer-events-none"></div>
+                    
+                    {/* CÓDIGO DO GRUPO (Posicionado no canto superior direito) */}
+                    <span className="absolute top-6 right-6 text-[10px] bg-zinc-900/80 border border-zinc-800 text-zinc-400 px-3 py-1.5 rounded-lg font-mono font-bold tracking-widest z-20 backdrop-blur-sm shadow-sm">
+                      CÓD: {group.inviteCode}
+                    </span>
+                    
+                    {/* Nome do grupo com padding à direita para não bater no código */}
+                    <h4 className="text-xl font-black italic text-white mb-10 relative z-10 truncate pr-24">{group.name}</h4>
+                    
+                    {/* Parte inferior limpa, só com membros */}
+                    <div className="mt-auto flex items-center gap-3 relative z-10">
+                      <div className="flex items-center">
+                        <div className="flex">
+                          {group.users?.map((u: any, index: number) => (
+                            <div 
+                              key={u.id} 
+                              className={`w-9 h-9 shrink-0 rounded-full border-2 border-black bg-zinc-800 flex items-center justify-center overflow-hidden ${index !== 0 ? '-ml-3' : ''} shadow-sm`}
+                              style={{ zIndex: 10 - index }}
+                              title={u.name}
+                            >
+                              {u.image ? (
+                                <img src={u.image} alt={u.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-[10px] font-bold text-zinc-500 uppercase">{u.name?.substring(0, 2)}</span>
+                              )}
+                            </div>
+                          ))}
+                          {extraUsers > 0 && (
+                            <div className="w-9 h-9 shrink-0 rounded-full border-2 border-black bg-zinc-900 flex items-center justify-center -ml-3 z-0 shadow-sm">
+                              <span className="text-[10px] font-bold text-zinc-500">+{extraUsers}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest whitespace-nowrap ml-3">
+                          {totalUsers === 1 ? '1 Membro' : `${totalUsers} Membros`}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
