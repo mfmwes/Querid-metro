@@ -11,28 +11,52 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  name          String
-  email         String   @unique
-  password      String
-  image         String?
-  votesSent     Vote[]   @relation("SentVotes")
-  votesReceived Vote[]   @relation("ReceivedVotes")
-  resetToken    String?
+  id               String    @id @default(cuid())
+  name             String
+  email            String    @unique
+  password         String
+  image            String?
+  resetToken       String?
   resetTokenExpiry DateTime?
   secretWord       String?
+
+  // Relações originais intactas
+  votesSent        Vote[]    @relation("SentVotes")
+  votesReceived    Vote[]    @relation("ReceivedVotes")
+  
+  // NOVA RELAÇÃO: O usuário agora pode estar em vários grupos
+  groups           Group[]   @relation("GroupMembers")
+}
+
+// NOVO MODELO: A Sala/Grupo
+model Group {
+  id          String   @id @default(cuid())
+  name        String
+  inviteCode  String   @unique
+  createdAt   DateTime @default(now())
+  
+  users       User[]   @relation("GroupMembers")
+  votes       Vote[]   
 }
 
 model Vote {
-  id           String   @id @default(cuid())
-  senderId     String   
-  receiverId   String   
-  emoji        String   
-  createdAt    DateTime @default(now())
+  id          String   @id @default(cuid())
+  senderId    String   
+  receiverId  String   
+  emoji       String   
+  createdAt   DateTime @default(now())
 
-  sender       User     @relation("SentVotes", fields: [senderId], references: [id])
-  receiver     User     @relation("ReceivedVotes", fields: [receiverId], references: [id])
+  // NOVA RELAÇÃO: O voto agora sabe em qual grupo ele aconteceu
+  // Fica opcional (?) para não quebrar os votos antigos que você já tem no banco
+  groupId     String?  
+  group       Group?   @relation(fields: [groupId], references: [id])
 
+  // Relações originais intactas
+  sender      User     @relation("SentVotes", fields: [senderId], references: [id])
+  receiver    User     @relation("ReceivedVotes", fields: [receiverId], references: [id])
+
+  // Seus índices de performance originais mantidos
   @@index([receiverId])
   @@index([senderId, createdAt])
+  @@index([groupId]) // Adicionado para manter o filtro de grupos rápido
 }

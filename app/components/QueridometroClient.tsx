@@ -16,9 +16,11 @@ type Vote = {
   receiverId: string;
   emoji: string;
   createdAt: string;
+  groupId?: string | null;
 };
 
-export default function QueridometroClient({ users }: { users: User[] }) {
+// ADICIONADO: Agora recebe o groupId como prop opcional
+export default function QueridometroClient({ users, groupId }: { users: User[], groupId?: string }) {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [votesSent, setVotesSent] = useState<Vote[]>([]);
@@ -32,7 +34,10 @@ export default function QueridometroClient({ users }: { users: User[] }) {
       const user = JSON.parse(userStr);
       setCurrentUser(user);
       
-      fetch(`/api/user/${user.id}`)
+      // Passa o groupId na URL para puxar apenas os votos deste grupo
+      const fetchUrl = groupId ? `/api/user/${user.id}?groupId=${groupId}` : `/api/user/${user.id}`;
+      
+      fetch(fetchUrl)
         .then(res => res.json())
         .then(data => {
           if (data.votesSent) {
@@ -60,7 +65,7 @@ export default function QueridometroClient({ users }: { users: User[] }) {
     } else {
       router.push('/auth');
     }
-  }, [router]);
+  }, [router, groupId]);
 
   const hasVotedToday = (dateString: string) => {
     if (!dateString) return false;
@@ -90,6 +95,7 @@ export default function QueridometroClient({ users }: { users: User[] }) {
           senderId: currentUser.id,
           receiverId,
           emoji,
+          groupId // Envia o grupo atual para a API
         }),
       });
 
@@ -113,56 +119,12 @@ export default function QueridometroClient({ users }: { users: User[] }) {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('queridometro_user');
-    router.push('/auth');
-  };
-
   if (!currentUser) return null;
 
   return (
     <div className="space-y-10">
       
-      {/* --- BARRA DO USUÁRIO LOGADO (DESIGN PREMIUM) --- */}
-      <div className="bg-zinc-900/80 backdrop-blur-md border border-zinc-800 rounded-[2rem] p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
-        
-        <div className="flex items-center gap-5 w-full md:w-auto">
-          <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden shrink-0 border-2 border-zinc-700 shadow-inner">
-            {currentUser.image ? (
-              <img src={currentUser.image} alt={currentUser.name} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-xl font-black text-zinc-500 uppercase">
-                {currentUser.name?.substring(0, 2)}
-              </span>
-            )}
-          </div>
-          <div>
-            <h2 className="text-2xl font-black italic tracking-tighter text-white leading-none">
-              {currentUser.name}
-            </h2>
-            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mt-1.5">
-              Sua Conta
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <button 
-            onClick={() => router.push('/profile')}
-            className="flex-1 md:flex-none bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold uppercase tracking-wider px-6 py-3 rounded-xl transition-all shadow-md"
-          >
-            Editar Perfil
-          </button>
-          <button 
-            onClick={handleLogout}
-            className="flex-1 md:flex-none bg-transparent hover:bg-red-500 text-red-500 hover:text-white border border-red-500/30 hover:border-red-500 text-xs font-bold uppercase tracking-wider px-6 py-3 rounded-xl transition-all"
-          >
-            Sair
-          </button>
-        </div>
-      </div>
-
-      {/* --- SEU DASHBOARD PÚBLICO --- */}
+      {/* SEU DASHBOARD PÚBLICO NESTE GRUPO */}
       <div className="bg-[#0a0a0a] border border-zinc-800 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
         
@@ -170,11 +132,10 @@ export default function QueridometroClient({ users }: { users: User[] }) {
           <div>
             <h3 className="text-2xl font-black italic tracking-tighter text-white">Meu Queridômetro</h3>
             <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mt-2">
-              Reações que você recebeu hoje
+              Reações que você recebeu hoje nesta sala
             </p>
           </div>
           
-          {/* Badge de Votos mais elegante */}
           <div className="bg-white text-black px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg">
             {myDailyVotes.length} {myDailyVotes.length === 1 ? 'voto hoje' : 'votos hoje'}
           </div>
@@ -185,10 +146,10 @@ export default function QueridometroClient({ users }: { users: User[] }) {
         </div>
       </div>
 
-      {/* --- LISTA DA COMUNIDADE --- */}
+      {/* LISTA DE MEMBROS DO GRUPO */}
       <div className="pt-4">
         <h3 className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-6">
-          Comunidade ({users.length - 1})
+          Membros da Sala ({users.length - 1})
         </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -222,9 +183,9 @@ export default function QueridometroClient({ users }: { users: User[] }) {
                     </div>
 
                     <button 
-                      onClick={() => router.push(`/profile/${user.id}`)}
+                      onClick={() => router.push(`/profile/${user.id}?groupId=${groupId || ''}`)}
                       className="shrink-0 text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white px-3 py-2 rounded-xl transition-colors uppercase font-bold"
-                      title="Ver Dashboard do Dia"
+                      title="Ver Dashboard"
                     >
                       Ver Emojis
                     </button>
