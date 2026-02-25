@@ -3,18 +3,21 @@ import { prisma } from '@/lib/prisma';
 
 export async function POST(req: Request) {
   try {
-    const { senderId, receiverId, emoji } = await req.json();
+    // 1. Adicionamos o groupId na desestruturação do JSON recebido
+    const { senderId, receiverId, emoji, groupId } = await req.json();
 
-    if (!senderId || !receiverId || !emoji) {
-      return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 });
+    // 2. Validamos se o groupId também foi enviado
+    if (!senderId || !receiverId || !emoji || !groupId) {
+      return NextResponse.json({ error: 'Dados incompletos (incluindo ID do grupo)' }, { status: 400 });
     }
 
-    // Cria o voto no banco conectando quem enviou, quem recebeu e qual foi o emoji
+    // 3. Incluímos o groupId no objeto data do Prisma
     const vote = await prisma.vote.create({
       data: {
         senderId,
         receiverId,
         emoji,
+        groupId, // Agora o banco vai saber de qual sala é esse voto
       },
     });
 
