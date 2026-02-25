@@ -18,6 +18,8 @@ model User {
   image         String?
   votesSent     Vote[]   @relation("SentVotes")
   votesReceived Vote[]   @relation("ReceivedVotes")
+  resetToken    String?
+  resetTokenExpiry DateTime?
 }
 
 model Vote {
