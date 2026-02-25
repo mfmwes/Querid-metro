@@ -1,24 +1,25 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// No Next.js 15, o segundo argumento (context) tem params como uma Promise
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
+  // 1. Aguardar a resolução dos params
+  const { id: userId } = await context.params;
+  
   const { searchParams } = new URL(req.url);
   const groupId = searchParams.get('groupId');
-  const userId = params.id;
 
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
-        // Filtramos os votos recebidos pelo grupo (se enviado)
         votesReceived: {
           where: groupId ? { groupId: groupId } : {},
           orderBy: { createdAt: 'desc' },
         },
-        // Filtramos os votos enviados pelo grupo (se enviado)
         votesSent: {
           where: groupId ? { groupId: groupId } : {},
           orderBy: { createdAt: 'desc' },
@@ -32,6 +33,7 @@ export async function GET(
 
     return NextResponse.json(user);
   } catch (error) {
-    return NextResponse.json({ error: 'Erro ao buscar dados do usuário' }, { status: 500 });
+    console.error("Erro na API de usuário:", error);
+    return NextResponse.json({ error: 'Erro ao buscar dados' }, { status: 500 });
   }
 }
