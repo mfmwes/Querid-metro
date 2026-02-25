@@ -23,7 +23,7 @@ export default function AuthPage() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string>('');
 
-  // Função Principal de Autenticação
+  // Função Principal Autenticação
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -168,7 +168,7 @@ export default function AuthPage() {
               {preview ? (
                 <img src={preview} alt="Preview" className="w-8 h-8 rounded-full object-cover border border-zinc-600" />
               ) : (
-                <span className="text-zinc-600 text-xs truncate">Nenhuma foto selecionada</span>
+                <span className="text-zinc-600 text-xs truncate">Nenhuma foto selecionada </span>
               )}
             </div>
           )}
@@ -200,6 +200,7 @@ export default function AuthPage() {
                   className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest hover:text-white transition-colors"
                 >
                   Esqueceu a senha?
+                  
                 </Link>
               </div>
             )}
