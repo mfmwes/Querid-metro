@@ -1,176 +1,195 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import QueridometroChart from './QueridometroChart';
 
-const EMOJIS = ["❤️", "💣", "🍪", "🌱", "🤢", "🎯", "💔", "🤥", "💼", "🐍", "🤬","🍌"];
+// 1. LISTA DE EMOJIS ATUALIZADA
+const EMOJIS = ["❤️", "💣", "🍪", "🌱", "🤢", "🎯", "💔", "🤥", "💼", "🐍", "🤬", "🍌"];
 
-export default function QueridometroClient({ users }: { users: any[] }) {
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [chartData, setChartData] = useState<any[]>([]);
-  const [myVotes, setMyVotes] = useState<Record<string, string>>({}); 
+type User = {
+  id: string;
+  name: string;
+  image: string | null;
+};
+
+type Vote = {
+  id: string;
+  receiverId: string;
+  createdAt: string;
+};
+
+export default function QueridometroClient({ users }: { users: User[] }) {
   const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [votesSent, setVotesSent] = useState<Vote[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
 
+  // Carrega o usuário atual do localStorage e busca os votos dele
   useEffect(() => {
-    const saved = localStorage.getItem('queridometro_user');
-    if (!saved) {
-      router.push('/auth');
-    } else {
-      const user = JSON.parse(saved);
+    const userStr = localStorage.getItem('queridometro_user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
       setCurrentUser(user);
-      loadDashboard(user.id);
+      
+      // Busca os votos já enviados por este usuário para fazer a checagem
+      fetch(`/api/user/${user.id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.votesSent) {
+            setVotesSent(data.votesSent);
+          }
+        })
+        .catch(err => console.error("Erro ao carregar votos:", err));
+    } else {
+      router.push('/auth');
     }
   }, [router]);
 
-  const loadDashboard = async (userId: string) => {
-    try {
-      const [summaryRes, votesRes] = await Promise.all([
-        fetch(`/api/votes/summary?userId=${userId}`),
-        fetch(`/api/votes/me?senderId=${userId}`)
-      ]);
-      if (summaryRes.ok) setChartData(await summaryRes.json());
-      if (votesRes.ok) setMyVotes(await votesRes.json());
-    } catch (error) { console.error(error); }
+  // --- 2. LÓGICA DE FUSO HORÁRIO (AMERICA/FORTALEZA) ---
+  const hasVotedToday = (dateString: string) => {
+    if (!dateString) return false;
+    
+    const voteDate = new Date(dateString);
+    const now = new Date();
+
+    // Força o front-end a formatar as duas datas no fuso do Ceará
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Fortaleza',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+
+    const todayLocal = formatter.format(now);
+    const voteDateLocal = formatter.format(voteDate);
+
+    // Retorna true se a data do voto for igual a data de hoje (no fuso local)
+    return todayLocal === voteDateLocal;
   };
 
+  // Função para enviar o voto
   const handleVote = async (receiverId: string, emoji: string) => {
-    const originalVotes = { ...myVotes };
-    setMyVotes(prev => ({ ...prev, [receiverId]: emoji }));
-    const res = await fetch('/api/vote', {
-      method: 'POST',
-      body: JSON.stringify({ receiverId, emoji, senderId: currentUser.id }),
-    });
-    if (!res.ok) {
-      alert("Erro ao computar voto.");
-      setMyVotes(originalVotes);
+    if (!currentUser) return;
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senderId: currentUser.id,
+          receiverId,
+          emoji,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || 'Erro ao registrar voto.');
+        setLoading(false);
+        return;
+      }
+
+      // Adiciona o voto recém-criado na lista local para bloquear o botão na hora
+      setVotesSent(prev => [...prev, data]);
+      setSelectedUser(null);
+      router.refresh();
+
+    } catch (error) {
+      console.error(error);
+      alert('Erro ao processar voto.');
+    } finally {
+      setLoading(false);
     }
   };
 
   if (!currentUser) return null;
 
   return (
-    <div className="space-y-12 animate-enter pb-24">
+    <div className="space-y-8">
       
-      {/* SEÇÃO HERO: Perfil e Gráfico */}
-      {/* Ajuste de Proporção: Largura máxima contida para leitura confortável */}
-      <section className="relative overflow-hidden rounded-[2rem] border border-white/5 bg-zinc-900/40 p-8 md:p-12 shadow-2xl backdrop-blur-xl">
-        {/* Efeito de luz ambiente */}
-        <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-red-500/10 blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row gap-8 md:items-start">
-          
-          {/* Coluna Esquerda: Identidade */}
-          <div className="flex flex-col items-center md:items-start md:w-1/3 space-y-4">
-            <Link href="/profile" className="group relative">
-              <div className="relative h-28 w-28 overflow-hidden rounded-full border-4 border-zinc-800 shadow-lg transition-transform duration-300 group-hover:scale-105 group-hover:border-zinc-600">
-                <img 
-                  src={currentUser.image || `https://ui-avatars.com/api/?name=${currentUser.name}`} 
-                  alt="Perfil" 
-                  className="h-full w-full object-cover"
-                />
-              </div>
-              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-zinc-800 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white opacity-0 transition-opacity group-hover:opacity-100">
-                Editar
-              </div>
-            </Link>
-            
-            <div className="text-center md:text-left">
-              <h2 className="text-3xl font-bold tracking-tight text-white">
-                {currentUser.name}
-              </h2>
-              <p className="text-sm font-medium uppercase tracking-widest text-zinc-500">
-                Dashboard Diário
-              </p>
-            </div>
-
-            {/* Micro-stats (Contagem rápida) */}
-            <div className="flex flex-wrap gap-2 justify-center md:justify-start pt-2">
-               {chartData.slice(0, 3).map((d) => (
-                 <div key={d.emoji} className="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1.5 text-sm border border-white/5">
-                    <span>{d.emoji}</span>
-                    <span className="font-bold text-zinc-200">{d.count}</span>
-                 </div>
-               ))}
-            </div>
-          </div>
-          
-          {/* Coluna Direita: Gráfico */}
-          <div className="flex-1 w-full min-h-[200px] border-t md:border-t-0 md:border-l border-white/5 md:pl-8 pt-8 md:pt-0">
-             <h3 className="mb-6 text-xs font-bold uppercase tracking-widest text-zinc-500">
-               Visão Geral de Reações
-             </h3>
-             <QueridometroChart data={chartData} />
-          </div>
-        </div>
-      </section>
-
-      {/* SEÇÃO LISTA: Grid Responsivo Profissional */}
-      <section>
-        <div className="mb-6 flex items-center justify-between px-2">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-            Membros ({users.length - 1})
-          </h3>
-          <span className="h-px flex-1 bg-zinc-800 ml-4"></span>
-        </div>
+      {/* SEÇÃO DOS MEMBROS */}
+      <div>
+        <h3 className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-4">
+          Membros ({users.length - 1})
+        </h3>
         
-        {/* GRID: 1 col (mobile), 2 col (tablet), 3 col (desktop) */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {users.filter(u => u.id !== currentUser.id).map(user => (
-            <div 
-              key={user.id} 
-              className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-white/5 bg-zinc-900/30 p-5 transition-all duration-300 hover:border-white/10 hover:bg-zinc-900/60"
-            >
-              <div className="flex items-center gap-4 mb-5">
-                <img 
-                  src={user.image || `https://ui-avatars.com/api/?name=${user.name}`} 
-                  alt={user.name}
-                  className="h-12 w-12 rounded-full border border-white/10 object-cover"
-                />
-                <div className="min-w-0">
-                  <p className="truncate text-base font-semibold text-zinc-200 group-hover:text-white transition-colors">
-                    {user.name}
-                  </p>
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">
-                    Disponível
-                  </p>
-                </div>
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {users
+            .filter(u => u.id !== currentUser.id) // Não mostra o próprio usuário na lista de votação
+            .map(user => {
+              
+              // 3. VERIFICA SE JÁ VOTOU HOJE USANDO A FUNÇÃO DE FUSO HORÁRIO
+              const jaVotou = votesSent.some(vote => 
+                vote.receiverId === user.id && hasVotedToday(vote.createdAt)
+              );
 
-              {/* Área de Ação */}
-              <div className="mt-auto">
-                {myVotes[user.id] ? (
-                  <div className="flex h-12 w-full items-center justify-center rounded-xl bg-green-500/10 border border-green-500/20 text-2xl animate-in zoom-in duration-300">
-                    {myVotes[user.id]}
+              return (
+                <div key={user.id} className="bg-[#111] border border-zinc-800 rounded-2xl p-4 flex flex-col gap-4">
+                  
+                  {/* Info do Usuário */}
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden">
+                      {user.image ? (
+                        <img src={user.image} alt={user.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-sm font-bold text-zinc-500 uppercase">
+                          {user.name?.substring(0, 2)}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="text-white font-bold">{user.name}</h4>
+                      <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                        {jaVotou ? 'VOTO REGISTRADO' : 'DISPONÍVEL'}
+                      </p>
+                    </div>
                   </div>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5 justify-center">
-                    {EMOJIS.map(emoji => (
-                      <button 
-                        key={emoji} 
-                        onClick={() => handleVote(user.id, emoji)}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/5 text-lg transition-all hover:scale-110 hover:bg-white/10 hover:text-white focus:ring-2 focus:ring-zinc-700 active:scale-95"
-                        title={`Enviar ${emoji}`}
+
+                  {/* Área de Votação */}
+                  <div className="bg-[#0a0a0a] border border-zinc-800/50 rounded-xl p-3 min-h-[60px] flex items-center justify-center">
+                    {jaVotou ? (
+                      <span className="text-xs text-zinc-600 font-bold uppercase tracking-widest">
+                        Aguarde até as 00:00
+                      </span>
+                    ) : selectedUser === user.id ? (
+                      <div className="flex flex-col w-full gap-3">
+                        {/* Grid de Emojis */}
+                        <div className="flex flex-wrap justify-center gap-3">
+                          {EMOJIS.map(emoji => (
+                            <button
+                              key={emoji}
+                              onClick={() => handleVote(user.id, emoji)}
+                              disabled={loading}
+                              className="text-2xl hover:scale-125 hover:-translate-y-1 transition-all disabled:opacity-50"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                        <button 
+                          onClick={() => setSelectedUser(null)}
+                          className="text-[10px] text-zinc-500 hover:text-white font-bold uppercase tracking-wider transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setSelectedUser(user.id)}
+                        className="w-full h-full text-zinc-500 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors"
                       >
-                        {emoji}
+                        Avaliar
                       </button>
-                    ))}
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
 
-      <footer className="mt-20 flex justify-center border-t border-white/5 pt-8">
-        <button 
-          onClick={() => { localStorage.removeItem('queridometro_user'); router.push('/auth'); }}
-          className="rounded-full px-6 py-2 text-xs font-bold uppercase tracking-widest text-zinc-500 transition-colors hover:bg-white/5 hover:text-red-400"
-        >
-          Encerrar Sessão
-        </button>
-      </footer>
+                </div>
+              );
+            })}
+        </div>
+      </div>
     </div>
   );
 }
