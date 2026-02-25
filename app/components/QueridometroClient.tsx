@@ -130,7 +130,7 @@ export default function QueridometroClient({ users }: { users: User[] }) {
                   
                   {/* Info do Usuário */}
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden">
+                    <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden shrink-0">
                       {user.image ? (
                         <img src={user.image} alt={user.name} className="w-full h-full object-cover" />
                       ) : (
@@ -139,9 +139,22 @@ export default function QueridometroClient({ users }: { users: User[] }) {
                         </span>
                       )}
                     </div>
-                    <div>
-                      <h4 className="text-white font-bold">{user.name}</h4>
-                      <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                    
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-white font-bold truncate max-w-[100px] sm:max-w-[120px]">{user.name}</h4>
+                        
+                        {/* NOVO BOTÃO DE VER DASHBOARD */}
+                        <button 
+                          onClick={() => router.push(`/profile/${user.id}`)}
+                          className="text-[9px] bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white px-2 py-1 rounded transition-colors uppercase font-bold shrink-0"
+                          title="Ver Dashboard do Dia"
+                        >
+                          Ver Emojis
+                        </button>
+                      </div>
+                      
+                      <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mt-1">
                         {jaVotou ? 'VOTO REGISTRADO' : 'DISPONÍVEL'}
                       </p>
                     </div>
