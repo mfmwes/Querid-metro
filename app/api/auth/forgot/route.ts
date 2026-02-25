@@ -25,7 +25,7 @@ export async function POST(req: Request) {
       isSecretValid = await bcrypt.compare(normalizedSecret, user.secretWord);
     } else {
       // Cenário B: Usuário ANTIGO (não tem palavra secreta) -> Usa a Chave Mestra
-      const ADMIN_MASTER_KEY = "admin-senha-123"; // ⚠️ Troque por uma frase criativa sua
+      const ADMIN_MASTER_KEY = "admin-senha-123"; 
       
       if (secretWord === ADMIN_MASTER_KEY) {
         isSecretValid = true;

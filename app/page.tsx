@@ -1,32 +1,35 @@
 import { prisma } from '@/lib/prisma';
-import QueridometroClient from './components/QueridometroClient';
+import QueridometroClient from './components/QueridometroClient'; // Verifique se o caminho da importação está correto para o seu projeto
 
-export const dynamic = 'force-dynamic';
-
-export default async function Page() {
+export default async function HomePage() {
+  // Busca os usuários no banco de dados (Server-side)
   const users = await prisma.user.findMany({
     select: {
       id: true,
       name: true,
       image: true,
+    },
+    orderBy: {
+      name: 'asc' // Ordem alfabética
     }
   });
 
   return (
-    <main className="min-h-screen bg-black text-white p-4 md:p-8 font-sans">
-      <div className="max-w-3xl mx-auto space-y-12">
-        <header className="flex justify-between items-center py-4 border-b border-zinc-800">
-          <div>
-            {/* CORREÇÃO AQUI: Adicionei 'pr-2' (padding-right) para não cortar o itálico */}
-            <h1 className="text-3xl font-black italic tracking-tighter bg-gradient-to-r from-red-500 to-yellow-500 bg-clip-text text-transparent pr-2">
-              QUERIDÔMETRO
-            </h1>
-            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.3em]">Comunidade Aberta</p>
-          </div>
-        </header>
+    <main className="min-h-screen bg-black p-8">
+      {/* CABEÇALHO PADRÃO */}
+      <header className="mb-12 border-b border-zinc-800 pb-6 max-w-5xl mx-auto">
+        <h1 className="text-4xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-yellow-500">
+          QUERIDÔMETRO
+        </h1>
+        <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mt-1">
+          Comunidade Aberta
+        </p>
+      </header>
 
-        <QueridometroClient users={users} />
-      </div>
+      {/* AQUI NÓS CHAMAMOS O SEU COMPONENTE CLIENT-SIDE, PASSANDO OS USUÁRIOS */}
+      <section className="max-w-5xl mx-auto">
+         <QueridometroClient users={users} />
+      </section>
     </main>
   );
 }
