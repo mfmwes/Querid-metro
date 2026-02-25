@@ -19,9 +19,9 @@ export default function PublicProfilePage() {
 
     const fetchPublicData = async () => {
       try {
-        // Busca os dados e as métricas do usuário específico
+        // A MÁGICA ESTÁ AQUI: Trocamos para a rota que puxa os votos (votesReceived)
         const [userRes, statsRes] = await Promise.all([
-          fetch(`/api/user/profile?userId=${userId}`),
+          fetch(`/api/user/${userId}`), 
           fetch(`/api/user/stats?userId=${userId}`)
         ]);
 
@@ -43,7 +43,7 @@ export default function PublicProfilePage() {
 
         const todayLocal = formatter.format(new Date());
 
-        // Filtra para pegar apenas os votos recebidos HOJE
+        // Agora userData.votesReceived realmente existe e tem os votos!
         const todaysVotes = (userData.votesReceived || []).filter((vote: any) => {
           const voteDateLocal = formatter.format(new Date(vote.createdAt));
           return voteDateLocal === todayLocal;
@@ -106,7 +106,7 @@ export default function PublicProfilePage() {
                 <p className="text-zinc-500 text-xs mt-1">Reações que {user.name} recebeu apenas no dia de hoje.</p>
               </div>
               <div className="bg-zinc-800 text-zinc-400 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">
-                {dailyVotes.length} votos hoje
+                {dailyVotes.length} {dailyVotes.length === 1 ? 'voto hoje' : 'votos hoje'}
               </div>
            </div>
            

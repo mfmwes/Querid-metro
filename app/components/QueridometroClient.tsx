@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-// 1. LISTA DE EMOJIS ATUALIZADA
 const EMOJIS = ["❤️", "💣", "🍪", "🌱", "🤢", "🎯", "💔", "🤥", "💼", "🐍", "🤬", "🍌"];
 
 type User = {
@@ -14,7 +13,7 @@ type User = {
 type Vote = {
   id: string;
   receiverId: string;
-  emoji: string; // <-- Agora ele sabe qual emoji foi
+  emoji: string;
   createdAt: string;
 };
 
@@ -31,7 +30,6 @@ export default function QueridometroClient({ users }: { users: User[] }) {
       const user = JSON.parse(userStr);
       setCurrentUser(user);
       
-      // Busca a lista de votos atualizada quando a página recarrega
       fetch(`/api/user/${user.id}`)
         .then(res => res.json())
         .then(data => {
@@ -84,7 +82,6 @@ export default function QueridometroClient({ users }: { users: User[] }) {
         return;
       }
 
-      // Adiciona o voto na tela na mesma hora
       setVotesSent(prev => [...prev, data]);
       setSelectedUser(null);
       router.refresh();
@@ -97,13 +94,61 @@ export default function QueridometroClient({ users }: { users: User[] }) {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('queridometro_user');
+    router.push('/auth');
+  };
+
   if (!currentUser) return null;
 
   return (
     <div className="space-y-8">
+      
+      {/* --- BARRA DO USUÁRIO LOGADO (DE VOLTA!) --- */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
+        
+        <div className="flex items-center gap-4 w-full sm:w-auto">
+          <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden shrink-0 border border-zinc-700">
+            {currentUser.image ? (
+              <img src={currentUser.image} alt={currentUser.name} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-sm font-bold text-zinc-500 uppercase">
+                {currentUser.name?.substring(0, 2)}
+              </span>
+            )}
+          </div>
+          <div>
+            <h2 className="text-white font-bold text-lg leading-tight">{currentUser.name}</h2>
+            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Sua Conta</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <button 
+            onClick={() => router.push(`/profile/${currentUser.id}`)}
+            className="flex-1 sm:flex-none bg-zinc-800 hover:bg-zinc-700 text-white text-[10px] font-bold uppercase px-4 py-2.5 rounded-lg transition-colors"
+          >
+            Meu Dashboard
+          </button>
+          <button 
+            onClick={() => router.push('/profile')}
+            className="flex-1 sm:flex-none bg-zinc-800 hover:bg-zinc-700 text-white text-[10px] font-bold uppercase px-4 py-2.5 rounded-lg transition-colors"
+          >
+            Editar Perfil
+          </button>
+          <button 
+            onClick={handleLogout}
+            className="flex-1 sm:flex-none bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 text-[10px] font-bold uppercase px-4 py-2.5 rounded-lg transition-all"
+          >
+            Sair
+          </button>
+        </div>
+      </div>
+      {/* --- FIM DA BARRA DO USUÁRIO --- */}
+
       <div>
         <h3 className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-4">
-          Membros ({users.length - 1})
+          Comunidade ({users.length - 1})
         </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -111,7 +156,6 @@ export default function QueridometroClient({ users }: { users: User[] }) {
             .filter(u => u.id !== currentUser.id)
             .map(user => {
               
-              // Verifica se votou E qual foi o emoji
               const votoDeHoje = votesSent.find(vote => 
                 vote.receiverId === user.id && hasVotedToday(vote.createdAt)
               );
@@ -147,7 +191,6 @@ export default function QueridometroClient({ users }: { users: User[] }) {
                   </div>
 
                   <div className="bg-black border border-zinc-800 rounded-xl p-3 min-h-[60px] flex items-center justify-center">
-                    {/* Renderiza o card bloqueado com o emoji que a pessoa escolheu */}
                     {votoDeHoje ? (
                       <div className="flex items-center gap-3 bg-zinc-900/50 px-4 py-2 rounded-lg border border-zinc-800">
                         <span className="text-2xl">{votoDeHoje.emoji}</span>
