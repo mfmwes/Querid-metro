@@ -1,16 +1,18 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import ProfileChart from '@/app/components/ProfileChart';
 
 export default function PublicProfilePage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
+  
   const userId = params.id as string;
+  const groupId = searchParams.get('groupId'); // <-- Lê o ID do grupo na URL
 
   const [user, setUser] = useState<any>(null);
-  const [stats, setStats] = useState<any>({ totalReceived: 0, totalSent: 0, mood: '😐' });
   const [dailyVotes, setDailyVotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -19,21 +21,17 @@ export default function PublicProfilePage() {
 
     const fetchPublicData = async () => {
       try {
-        // A MÁGICA ESTÁ AQUI: Trocamos para a rota que puxa os votos (votesReceived)
-        const [userRes, statsRes] = await Promise.all([
-          fetch(`/api/user/${userId}`), 
-          fetch(`/api/user/stats?userId=${userId}`)
-        ]);
+        // Se houver um groupId na URL, passa-o para a API filtrar os votos
+        const fetchUrl = groupId ? `/api/user/${userId}?groupId=${groupId}` : `/api/user/${userId}`;
+        
+        const userRes = await fetch(fetchUrl);
 
-        if (!userRes.ok) throw new Error("Usuário não encontrado");
+        if (!userRes.ok) throw new Error("Utilizador não encontrado");
 
         const userData = await userRes.json();
-        const statsData = await statsRes.json();
-
         setUser(userData);
-        if (statsData) setStats(statsData);
 
-        // --- FILTRO DO "DASHBOARD DO DIA" (Fuso de Fortaleza) ---
+        // --- FILTRO DO "DASHBOARD DO DIA" (Fuso horário de Fortaleza) ---
         const formatter = new Intl.DateTimeFormat('en-CA', {
           timeZone: 'America/Fortaleza',
           year: 'numeric',
@@ -43,7 +41,8 @@ export default function PublicProfilePage() {
 
         const todayLocal = formatter.format(new Date());
 
-        // Agora userData.votesReceived realmente existe e tem os votos!
+        // A API já nos devolveu apenas os votos do grupo (graças ao nosso ajuste anterior!)
+        // Agora só precisamos de filtrar os que foram de HOJE.
         const todaysVotes = (userData.votesReceived || []).filter((vote: any) => {
           const voteDateLocal = formatter.format(new Date(vote.createdAt));
           return voteDateLocal === todayLocal;
@@ -54,29 +53,34 @@ export default function PublicProfilePage() {
       } catch (error) {
         console.error(error);
         alert("Erro ao carregar perfil.");
-        router.push('/');
+        // Se der erro, volta para a sala (se existir) ou para o Lobby
+        router.push(groupId ? `/group/${groupId}` : '/');
       } finally {
         setLoading(false);
       }
     };
 
     fetchPublicData();
-  }, [userId, router]);
+  }, [userId, groupId, router]);
 
   if (loading) {
-    return <div className="min-h-screen bg-black flex items-center justify-center text-zinc-500 font-bold uppercase tracking-widest text-xs animate-pulse">Carregando Queridômetro...</div>;
+    return <div className="min-h-screen bg-black flex items-center justify-center text-zinc-500 font-bold uppercase tracking-widest text-xs animate-pulse">A carregar Queridômetro...</div>;
   }
 
   if (!user) return null;
+
+  // Deixa o botão de voltar dinâmico (Volta para a sala ou para o Lobby principal)
+  const backLink = groupId ? `/group/${groupId}` : '/';
+  const backText = groupId ? 'Voltar para a Sala' : 'Voltar para o Lobby';
 
   return (
     <main className="min-h-screen bg-black text-white p-4 md:p-8 font-sans">
       <div className="max-w-4xl mx-auto space-y-8">
         
-        {/* HEADER */}
+        {/* CABEÇALHO */}
         <div className="flex justify-between items-center">
-            <Link href="/" className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest">
-              <span>←</span> Voltar para a Comunidade
+            <Link href={backLink} className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest">
+              <span>←</span> {backText}
             </Link>
         </div>
 
@@ -103,14 +107,14 @@ export default function PublicProfilePage() {
            <div className="flex justify-between items-end mb-6">
               <div>
                 <h3 className="text-lg font-bold text-white">Queridômetro de Hoje</h3>
-                <p className="text-zinc-500 text-xs mt-1">Reações que {user.name} recebeu apenas no dia de hoje.</p>
+                <p className="text-zinc-500 text-xs mt-1">Reações que {user.name} recebeu apenas no dia de hoje{groupId ? ' nesta sala' : ''}.</p>
               </div>
               <div className="bg-zinc-800 text-zinc-400 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">
                 {dailyVotes.length} {dailyVotes.length === 1 ? 'voto hoje' : 'votos hoje'}
               </div>
            </div>
            
-           {/* Repassando apenas os votos de HOJE para o gráfico */}
+           {/* Repassando apenas os votos de HOJE e deste GRUPO para o gráfico */}
            <ProfileChart votes={dailyVotes} />
         </div>
 
