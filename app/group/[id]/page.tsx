@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import QueridometroClient from '../../components/QueridometroClient'; // Verifica se o caminho está certinho no seu projeto
+import QueridometroClient from '../../components/QueridometroClient'; 
 import Link from 'next/link';
 
 export default async function GroupPage({ params }: { params: Promise<{ id: string }> }) {
@@ -36,7 +36,8 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
 
       <header className="mb-10 border-b border-zinc-800 pb-6 max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
         <div>
-          <h1 className="text-4xl md:text-5xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-yellow-500">
+          {/* A MÁGICA DO pr-2 e pb-1: Dá um fôlego para as letras em itálico não serem cortadas pelo gradiente */}
+          <h1 className="text-4xl md:text-5xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-yellow-500 pr-2 pb-1">
             {group.name}
           </h1>
           <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mt-2">
@@ -52,8 +53,8 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
       </header>
 
       <section className="max-w-5xl mx-auto">
-         {/* Passamos OS USUÁRIOS ESPECÍFICOS DESTE GRUPO para o seu componente já existente */}
-         <QueridometroClient users={group.users} />
+         {/* Repassamos os utilizadores desta sala E o groupId para o dashboard saber onde está */}
+         <QueridometroClient users={group.users} groupId={groupId} />
       </section>
     </main>
   );
