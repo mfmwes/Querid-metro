@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get('userId');
+  const groupId = searchParams.get('groupId'); // Captura o ID do grupo
 
   if (!userId) return NextResponse.json([]);
 
@@ -14,7 +15,12 @@ export async function GET(req: Request) {
     by: ['emoji'],
     where: { 
       receiverId: userId, 
-      createdAt: { gte: today } 
+      // Se estivermos num grupo, filtramos por hoje e pelo grupo.
+      // Se não houver groupId, removemos o filtro de data para mostrar o "All-time" no perfil.
+      ...(groupId ? { 
+          groupId: groupId,
+          createdAt: { gte: today } 
+        } : {}) 
     },
     _count: { emoji: true }
   });
