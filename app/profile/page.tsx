@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import ProfileChart from '@/app/components/ProfileChart'; // Importe o novo gráfico
+import ProfileChart from '@/app/components/ProfileChart';
 
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null);
@@ -55,9 +55,13 @@ export default function ProfilePage() {
 
       if (file) {
         const fileExt = file.name.split('.').pop();
-        const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+        const cleanName = file.name.replace(/[^a-zA-Z0-9]/g, ''); 
+        const fileName = `${user.id}-${Date.now()}-${cleanName}.${fileExt}`;
+        
+        // Mantendo o A maiúsculo no 'Avatars' que arrumamos antes!
         const { error } = await supabase.storage.from('Avatars').upload(fileName, file, { upsert: true });
         if (error) throw error;
+        
         const { data } = supabase.storage.from('Avatars').getPublicUrl(fileName);
         finalImageUrl = data.publicUrl;
       }
@@ -84,7 +88,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (!user) return <div className="text-center py-20 text-zinc-500">Carregando Dashboard...</div>;
+  if (!user) return <div className="min-h-screen bg-black flex items-center justify-center text-zinc-500 font-bold uppercase tracking-widest text-xs animate-pulse">Carregando Dashboard...</div>;
 
   return (
     <main className="min-h-screen bg-black text-white p-4 md:p-8 font-sans">
@@ -189,8 +193,8 @@ export default function ProfilePage() {
                   <p className="text-zinc-500 text-xs mt-1">Todas as reações que você já recebeu.</p>
                 </div>
              </div>
-             {/* Componente de Gráfico Colorido */}
-             <ProfileChart data={stats.chartData} />
+             {/* AQUI ESTÁ A CORREÇÃO: Passando user.votesReceived */}
+             <ProfileChart votes={user.votesReceived || []} />
           </div>
         )}
 
