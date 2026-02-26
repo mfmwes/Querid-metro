@@ -10,7 +10,7 @@ const ALL_EMOJIS = ["❤️", "💣", "🍪", "🌱", "🤢", "🎯", "💔", "�
 
 const EMOJI_COLORS: Record<string, string> = {
   "❤️": "#ef4444",
-  "💣": "#a1a1aa", // Cinza para a bomba aparecer bem no fundo escuro
+  "💣": "#a1a1aa", 
   "🍪": "#f59e0b",
   "🌱": "#22c55e",
   "🤢": "#84cc16",
@@ -38,17 +38,15 @@ export default function ProfileChart({ votes }: { votes: Vote[] }) {
 
   return (
     <div className="flex flex-col w-full h-full pt-4">
-      {/* Título normal, sem forçar a largura, para não quebrar o celular */}
       <h3 className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-6">
         Visão Geral de Reações
       </h3>
 
-      {/* Caixa de rolagem isolada! Apenas o gráfico rola horizontalmente no telemóvel */}
+      {/* Caixa de rolagem isolada para o telemóvel */}
       <div className="w-full overflow-x-auto pb-4 scrollbar-hide">
         
-        {/* A MÁGICA AQUI: min-w-[500px] + min-h-[160px]/[200px] + flex e items-end */}
-        {/* Adicionei 'flex items-end' e defini a altura mínima para as barras voltarem a aparecer */}
-        <div className="flex items-end justify-between gap-2 min-w-[500px] sm:min-w-full min-h-[160px] sm:min-h-[200px] relative mt-4">
+        {/* Adicionado altura FIXA h-[160px] / h-[200px] para dar espaço para as barras crescerem */}
+        <div className="flex items-end justify-between gap-2 min-w-[500px] sm:min-w-full h-[160px] sm:h-[200px] relative mt-4">
           
           {/* Linhas horizontais de fundo */}
           <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-[0.05] pb-10 z-0">
@@ -64,32 +62,32 @@ export default function ProfileChart({ votes }: { votes: Vote[] }) {
             const color = EMOJI_COLORS[item.emoji] || "#52525b";
 
             return (
-              <div key={item.emoji} className="flex flex-col items-center gap-3 group relative z-10 w-full flex-1">
+              /* AQUI ESTAVA O ERRO: Faltava o h-full para a coluna ocupar todo o espaço vertical */
+              <div key={item.emoji} className="flex flex-col items-center justify-end group relative z-10 w-full h-full">
                 
-                {/* Contador de votos */}
-                <span className={`text-xs font-black transition-all duration-300 ${
+                <span className={`text-xs font-black transition-all duration-300 mb-3 ${
                   isZero ? 'text-zinc-600 opacity-0 group-hover:opacity-100' : 'text-white drop-shadow-md'
                 }`}>
                   {item.count}
                 </span>
 
-                {/* Trilho da barra (background escuro) */}
-                <div className="w-full max-w-[2rem] sm:max-w-[2.5rem] flex items-end justify-center h-full rounded-t-lg bg-zinc-800/50 relative overflow-hidden">
+                {/* A MÁGICA: flex-1 faz o trilho escuro esticar e ocupar todo o meio da coluna */}
+                <div className="w-full max-w-[2rem] sm:max-w-[2.5rem] flex-1 rounded-t-lg bg-zinc-800/50 relative overflow-hidden">
                    
-                   {/* A BARRA COLORIDA! Ela precisa de um pai com 'flex items-end' e altura definida para aparecer */}
+                   {/* A BARRA COLORIDA */}
                    <div
                      className="w-full rounded-t-lg transition-all duration-1000 ease-out absolute bottom-0"
                      style={{
                        height: isZero ? '4px' : `${heightPercent}%`,
-                       backgroundColor: isZero ? '#3f3f46' : color, // Cinza médio para zero votos
+                       backgroundColor: isZero ? '#3f3f46' : color,
                        opacity: isZero ? 0.3 : 1,
-                       boxShadow: isZero ? 'none' : `0 -4px 15px -4px ${color}` // Brilho colorido
+                       boxShadow: isZero ? 'none' : `0 -4px 15px -4px ${color}` 
                      }}
                    />
                 </div>
 
                 {/* Emoji na base */}
-                <span className={`text-xl sm:text-2xl transition-all duration-300 ${
+                <span className={`text-xl sm:text-2xl transition-all duration-300 mt-3 ${
                   isZero ? 'opacity-40 grayscale group-hover:grayscale-0 group-hover:opacity-100 cursor-default' : 'drop-shadow-md scale-110'
                 }`}>
                   {item.emoji}
